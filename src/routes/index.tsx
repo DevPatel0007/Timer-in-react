@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 
 export const Route = createFileRoute('/')({ component: Home })
@@ -14,8 +14,12 @@ function Home() {
   // =========================
   // Timer State
   // =========================
+  type AlarmType = 'Beep' | 'Melody';
+
   const [timerTime, setTimerTime] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [alarmType, setAlarmType] = useState<AlarmType>('Beep');
+  const [alarmPlaying, setAlarmPlaying] = useState(false);
 
   // Dynamic Inputs
   const [hours, setHours] = useState("");
@@ -25,6 +29,7 @@ function Home() {
   // Refs
   const stopwatchRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // =========================================
   // Stopwatch Logic
@@ -71,6 +76,73 @@ function Home() {
     setStopwatchTime(0);
   };
 
+  const playAlarm = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = new AudioCtx();
+    const playTone = (frequency: number, duration: number, when: number) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = alarmType === 'Beep' ? 'square' : 'triangle';
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+
+      gain.gain.setValueAtTime(0.28, ctx.currentTime + when);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + when + duration);
+
+      oscillator.start(ctx.currentTime + when);
+      oscillator.stop(ctx.currentTime + when + duration);
+    };
+
+    if (alarmType === 'Beep') {
+      playTone(1760, 0.25, 0);
+    } else {
+      playTone(1046.5, 0.2, 0);
+      playTone(1318.5, 0.2, 0.25);
+      playTone(1568, 0.25, 0.5);
+    }
+  }, [alarmType]);
+
+  const stopAlarm = () => {
+    setAlarmPlaying(false);
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!alarmPlaying) {
+      if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+        alarmIntervalRef.current = null;
+      }
+      return;
+    }
+
+    playAlarm();
+
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+    }
+
+    alarmIntervalRef.current = setInterval(() => {
+      playAlarm();
+    }, 900);
+
+    return () => {
+      if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+        alarmIntervalRef.current = null;
+      }
+    };
+  }, [alarmPlaying, playAlarm]);
+
   // =========================================
   // Timer Logic
   // =========================================
@@ -92,7 +164,7 @@ function Home() {
       setTimerTime((prev) => {
         if (prev <= 100) {
           setIsTimerRunning(false);
-          alert("Timer Finished!");
+          setAlarmPlaying(true);
           return 0;
         }
         return prev - 100;
@@ -105,9 +177,13 @@ function Home() {
         timerRef.current = null;
       }
     };
-  }, [isTimerRunning]);
+  }, [isTimerRunning, playAlarm]);
 
   const startTimer = () => {
+    if (alarmPlaying) {
+      stopAlarm();
+    }
+
     // If timer is paused (has time left), just resume it
     if (timerTime > 0) {
       setIsTimerRunning(true);
@@ -138,6 +214,7 @@ function Home() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    stopAlarm();
     setIsTimerRunning(false);
     setTimerTime(0);
     setHours("");
@@ -212,10 +289,25 @@ function Home() {
           />
         </div>
 
+        <div className="flex items-center gap-3 mb-5">
+          <label className="font-medium">Alarm sound:</label>
+          <select
+            value={alarmType}
+            onChange={(e) => setAlarmType(e.target.value as AlarmType)}
+            className="border p-2"
+          >
+            <option value="Beep">Beep</option>
+            <option value="Melody">Melody</option>
+          </select>
+        </div>
+
         <div className="space-x-3">
           <Button onClick={startTimer}>Start</Button>
-          <Button onClick={pauseTimer}>Pause</Button>
+          <Button onClick={pauseTimer} disabled={alarmPlaying}>Pause</Button>
           <Button onClick={resetTimer}>Reset</Button>
+          {alarmPlaying ? (
+            <Button onClick={stopAlarm}>Stop Alarm</Button>
+          ) : null}
         </div>
       </div>
     </div>
