@@ -1,19 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
-
+import { Analytics } from "@vercel/analytics/next"
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
-   // =========================
-  // Stopwatch State
-  // =========================
   const [stopwatchTime, setStopwatchTime] = useState(0);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
 
-  // =========================
-  // Timer State
-  // =========================
   type AlarmType = 'Beep' | 'Melody';
 
   const [timerTime, setTimerTime] = useState(0);
@@ -21,19 +15,14 @@ function Home() {
   const [alarmType, setAlarmType] = useState<AlarmType>('Beep');
   const [alarmPlaying, setAlarmPlaying] = useState(false);
 
-  // Dynamic Inputs
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
 
-  // Refs
   const stopwatchRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // =========================================
-  // Stopwatch Logic
-  // =========================================
   useEffect(() => {
     if (!isStopwatchRunning) {
       if (stopwatchRef.current) {
@@ -143,9 +132,6 @@ function Home() {
     };
   }, [alarmPlaying, playAlarm]);
 
-  // =========================================
-  // Timer Logic
-  // =========================================
   useEffect(() => {
     if (!isTimerRunning) {
       if (timerRef.current) {
@@ -184,13 +170,11 @@ function Home() {
       stopAlarm();
     }
 
-    // If timer is paused (has time left), just resume it
     if (timerTime > 0) {
       setIsTimerRunning(true);
       return;
     }
 
-    // If timer is at 0, calculate time from inputs in milliseconds
     const totalMs =
       (Number(hours) || 0) * 3600 * 1000 +
       (Number(minutes) || 0) * 60 * 1000 +
@@ -222,9 +206,6 @@ function Home() {
     setSeconds("");
   };
 
-  // =========================================
-  // Format Function
-  // =========================================
   const formatTime = (timeInMs: number) => {
     const totalSeconds = Math.floor(timeInMs / 1000);
     const milliseconds = Math.floor((timeInMs % 1000) / 10); // Get centiseconds (0-99)
@@ -238,78 +219,78 @@ function Home() {
   };
 
   return (
-    <div className="p-10 space-y-10">
-      {/* ================= Stopwatch ================= */}
-      <div className="border p-6 rounded-xl">
-        <h1 className="text-3xl font-bold mb-4">Stopwatch</h1>
+    <>
+      <Analytics/>
+      <div className="p-10 space-y-10">
+        <div className="border p-6 rounded-xl">
+          <h1 className="text-3xl font-bold mb-4">Stopwatch</h1>
 
-        <div className="text-5xl mb-5">
-          {formatTime(stopwatchTime)}
+          <div className="text-5xl mb-5">
+            {formatTime(stopwatchTime)}
+          </div>
+
+          <div className="space-x-3">
+            <Button onClick={startStopwatch}>Start</Button>
+            <Button onClick={pauseStopwatch}>Pause</Button>
+            <Button onClick={resetStopwatch}>Reset</Button>
+          </div>
         </div>
 
-        <div className="space-x-3">
-          <Button onClick={startStopwatch}>Start</Button>
-          <Button onClick={pauseStopwatch}>Pause</Button>
-          <Button onClick={resetStopwatch}>Reset</Button>
+        <div className="border p-6 rounded-xl">
+          <h1 className="text-3xl font-bold mb-4">Timer</h1>
+
+          <div className="text-5xl mb-5">
+            {formatTime(timerTime)}
+          </div>
+
+          <div className="flex gap-3 mb-5">
+            <input
+              type="number"
+              placeholder="HH"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              className="border p-2"
+            />
+
+            <input
+              type="number"
+              placeholder="MM"
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              className="border p-2"
+            />
+
+            <input
+              type="number"
+              placeholder="SS"
+              value={seconds}
+              onChange={(e) => setSeconds(e.target.value)}
+              className="border p-2"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 mb-5">
+            <label className="font-medium">Alarm sound:</label>
+            <select
+              value={alarmType}
+              onChange={(e) => setAlarmType(e.target.value as AlarmType)}
+              className="border p-2"
+            >
+              <option value="Beep">Beep</option>
+              <option value="Melody">Melody</option>
+            </select>
+          </div>
+
+          <div className="space-x-3">
+            <Button onClick={startTimer}>Start</Button>
+            <Button onClick={pauseTimer} disabled={alarmPlaying}>Pause</Button>
+            <Button onClick={resetTimer}>Reset</Button>
+            {alarmPlaying ? (
+              <Button onClick={stopAlarm}>Stop Alarm</Button>
+            ) : null}
+          </div>
         </div>
       </div>
-
-      {/* ================= Timer ================= */}
-      <div className="border p-6 rounded-xl">
-        <h1 className="text-3xl font-bold mb-4">Timer</h1>
-
-        <div className="text-5xl mb-5">
-          {formatTime(timerTime)}
-        </div>
-
-        {/* Dynamic Inputs */}
-        <div className="flex gap-3 mb-5">
-          <input
-            type="number"
-            placeholder="HH"
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-            className="border p-2"
-          />
-
-          <input
-            type="number"
-            placeholder="MM"
-            value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
-            className="border p-2"
-          />
-
-          <input
-            type="number"
-            placeholder="SS"
-            value={seconds}
-            onChange={(e) => setSeconds(e.target.value)}
-            className="border p-2"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 mb-5">
-          <label className="font-medium">Alarm sound:</label>
-          <select
-            value={alarmType}
-            onChange={(e) => setAlarmType(e.target.value as AlarmType)}
-            className="border p-2"
-          >
-            <option value="Beep">Beep</option>
-            <option value="Melody">Melody</option>
-          </select>
-        </div>
-
-        <div className="space-x-3">
-          <Button onClick={startTimer}>Start</Button>
-          <Button onClick={pauseTimer} disabled={alarmPlaying}>Pause</Button>
-          <Button onClick={resetTimer}>Reset</Button>
-          {alarmPlaying ? (
-            <Button onClick={stopAlarm}>Stop Alarm</Button>
-          ) : null}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
